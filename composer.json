@@ -1,5 +1,5 @@
 {
-    "name": "visualplus/naverid",
+    "name": "visualplus/social-login",
     "license": "MIT",
     "authors": [
         {
@@ -9,7 +9,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Visualplus\\Naverid\\": "src/"
+            "Visualplus\\SocialLogin\\": "src/"
         }
     },
     "require": {

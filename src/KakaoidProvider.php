@@ -4,8 +4,8 @@ namespace Visualplus\SocialLogin;
 use Laravel\Socialite\Two\AbstractProvider;
 use Laravel\Socialite\Two\ProviderInterface;
 use Laravel\Socialite\Two\User;
-use GuzzleHttp\Psr7;
-class NaveridProvider extends AbstractProvider implements ProviderInterface {
+
+class KakaoidProvider extends AbstractProvider implements ProviderInterface {
 	/**
 	 * XML -> array 형식 변환.
 	 * 
@@ -26,7 +26,7 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      * @return string
      */
 	protected function getAuthUrl($state) {
-		return $this->buildAuthUrlFromBase("https://nid.naver.com/oauth2.0/authorize", $state);
+		return $this->buildAuthUrlFromBase("https://kauth.kakao.com/oauth/authorize", $state);
 	}
 	
 	/**
@@ -35,7 +35,7 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      * @return string
      */
 	protected function getTokenUrl() {
-		return 'https://nid.naver.com/oauth2.0/token';
+		return 'https://kauth.kakao.com/oauth/token';
 	}
 	
 	/**
@@ -46,7 +46,6 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      */
 	public function getAccessToken($code) {
 		$response = $this->getHttpClient()->request('POST', $this->getTokenUrl(), [
-			'headers'	 	=> ['Accept' => 'application/json'],
 			'form_params'	=> $this->getTokenFields($code),
         ]);
 		
@@ -60,9 +59,12 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      * @return array
      */
 	protected function getTokenFields($code) {
-		return array_add(
-            parent::getTokenFields($code), 'grant_type', 'authorization_code'
-        );
+		return [
+			'grant_type' 	=> 'authorization_code',
+			'client_id'		=> $this->clientId,
+			'redirect_uri' 	=> $this->redirectUrl,
+			'code' 			=> $code,
+		];
 	}
 	
 	/**
@@ -72,15 +74,13 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      * @return array
      */
 	protected function getUserByToken($token) {
-		$response = $this->getHttpClient()->request('GET', 'https://openapi.naver.com/v1/nid/getUserProfile.xml', [
+		$response = $this->getHttpClient()->request('POST', 'https://kapi.kakao.com/v1/user/me', [
 			'headers' => [
 				'Authorization' => 'Bearer ' . $token,
 		    ],
 		]);
 		
-		$xml = $response->getBody()->getContents();
-		
-		return $this->parseXML($xml)['response'];
+		return json_decode($response->getBody(), true);
 		
 	}
 	
@@ -91,16 +91,27 @@ class NaveridProvider extends AbstractProvider implements ProviderInterface {
      * @return \Laravel\Socialite\User
      */
 	protected function mapUserToObject(array $user) {
+		
 		return (new User)->setRaw($user)->map([
-			'email'		=> $user['email'],
-			'nickname' 	=> $user['nickname'],
-            'enc_id'   	=> $user['enc_id'],
-            'profile_image' => $user['profile_image'],
-            'age'		=> $user['age'],
-            'gender'	=> $user['gender'],
-            'id'		=> $user['id'],
-            'name'		=> $user['name'],
-            'birthday'	=> $user['birthday'],
+			'id'		=> $user['id'],
+			'properties' => [
+				'nickname'	=> $user['properties']['nickname'],
+				'thumbnail_image'	=> $user['properties']['thumbnail_image'],
+				'profile_image'		=> $user['properties']['profile_image'],
+			]
+		]);
+	}
+	
+	/**
+	 * User logout
+	 * 
+	 * @param string $user
+	 */
+	public function logOut($user) {
+		$response = $this->getHttpClient()->request('POST', 'https://kapi.kakao.com/v1/user/logout', [
+			'headers' => [
+				'Authorization' => 'Bearer '.$user->token
+			],
 		]);
 	}
 }
